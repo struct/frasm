@@ -1,0 +1,20 @@
+frasm is a Ruby binding for Distorm64 v1.7.30 written by Gil Dabah [http://ragestorm.net/distorm/]
+
+The frasm binding was originally written by Tom Ptacek and has since been updated by Chris Rohlf
+
+frasm requires you have built and installed libdistorm
+
+Distorm comes with pystorm by default so when you create distorm64.{so,bundle,dll} be sure to compile like so:
+'make clib' otherwise ruby will throw an error due to undefined python symbols
+
+-------------------
+Example frasm usage
+-------------------
+
+require 'frasm'
+
+d = Frasm::DistormDecoder.new
+
+d.decode("ABCDEFGHIJKLMNOPQRSTUVWXYZ").each do |l|
+    puts "#{l.mnem} #{l.size} #{l.offset} #{l.raw}"
+end
