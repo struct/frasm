@@ -7,6 +7,17 @@ frasm requires you have built and installed libdistorm
 Distorm comes with pystorm by default so when you create distorm64.{so,bundle,dll} be sure to compile like so:
 'make clib' otherwise ruby will throw an error due to undefined python symbols
 
+---------------
+Compiling Frasm
+---------------
+cd src/
+
+ruby extconf.rb
+
+make
+
+The directories linux/ osx/ and win32 also have manually created Makefiles if extconf.rb fails you
+
 -------------------
 Example frasm usage
 -------------------
