@@ -1,4 +1,4 @@
-frasm is a Ruby binding for Distorm64 v1.7.30 written by Gil Dabah [http://ragestorm.net/distorm/]
+frasm is a Ruby binding for Distorm3 v3.3 written by Gil Dabah [http://ragestorm.net/distorm/]
 
 The frasm binding was originally written by Tom Ptacek and has since been updated by Chris Rohlf
 
@@ -6,15 +6,17 @@ frasm requires you have built and installed libdistorm
 
 Distorm comes with pystorm by default so when you create distorm64.{so,bundle,dll} be sure to compile like so:
 'make clib' otherwise ruby will throw an error due to undefined python symbols
+make sure you have the distorm3.so/distorm3.dylib under your search path (the OSX generated makefile looks for /usr/local/lib/distorm3.dylib)
 
 ---------------
 Compiling Frasm
 ---------------
 cd src/
 
-ruby extconf.rb
+ruby extconf.rb (for OSX: ruby extconf_osx.rb)
 
 make
+make install (may require sudo)
 
 The directories linux/ osx/ and win32 also have manually created Makefiles if extconf.rb fails you
 
@@ -26,6 +28,6 @@ require 'frasm'
 
 d = Frasm::DistormDecoder.new
 
-d.decode("ABCDEFGHIJKLMNOPQRSTUVWXYZ").each do |l|
+d.decode("\x90\x90\x90\x33\xc0\x66\xb8\x34\x12\x50\x40\xc3").each do |l|
     puts "#{l.mnem} #{l.size} #{l.offset} #{l.raw}"
 end

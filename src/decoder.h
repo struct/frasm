@@ -1,8 +1,23 @@
 /*
 decoder.h
 
-Copyright (C) 2003-2008 Gil Dabah, http://ragestorm.net/distorm/
-This library is licensed under the BSD license. See the file COPYING.
+diStorm3 - Powerful disassembler for X86/AMD64
+http://ragestorm.net/distorm/
+distorm at gmail dot com
+Copyright (C) 2011  Gil Dabah
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>
 */
 
 
@@ -11,33 +26,8 @@ This library is licensed under the BSD license. See the file COPYING.
 
 #include "config.h"
 
-#include "wstring.h"
-
 typedef unsigned int _iflags;
 
-/* DEFAULT instructions decoding mode. */
-typedef enum {Decode16Bits = 0, Decode32Bits = 1, Decode64Bits = 2} _DecodeType;
-
-typedef OFFSET_INTEGER _OffsetType;
-
-typedef struct {
-	_WString mnemonic;
-	_WString operands;
-	_WString instructionHex;
-	unsigned int size;
-	_OffsetType offset;
-} _DecodedInst;
-
-typedef struct {
-	const uint8_t* code;
-	int codeLen;
-	_OffsetType codeOffset;
-} _CodeInfo;
-
-typedef enum {DECRES_NONE, DECRES_SUCCESS, DECRES_MEMORYERR, DECRES_INPUTERR} _DecodeResult;
-_DecodeResult internal_decode(_OffsetType codeOffset, const uint8_t* code, int codeLen, _DecodeType dt, _DecodedInst result[], unsigned int maxResultCount, unsigned int* usedEntriesCount);
-
-_DecodeType ADDR_SIZE_AFFECT(_DecodeType dt, _iflags totalPrefixes);
-_DecodeType OP_SIZE_AFFECT(_DecodeType dt, _iflags totalPrefixes, unsigned int rex, _iflags instFlags);
+_DecodeResult decode_internal(_CodeInfo* ci, int supportOldIntr, _DInst result[], unsigned int maxResultCount, unsigned int* usedInstructionsCount);
 
 #endif /* DECODER_H */

@@ -55,25 +55,25 @@ static VALUE _decode(int argc, VALUE *argv, VALUE self)
 	}
 
 	ret = rb_ary_new();
-	str = (uint8_t *) RSTRING(buf)->ptr;
-	len = RSTRING(buf)->len;
+	str = (uint8_t *) RSTRING_PTR(buf);
+	len = RSTRING_LEN(buf);
 
 	while(e != DECRES_SUCCESS) { 
 	  VALUE insn = Qnil;
 	  u_char text[MAX_TEXT_SIZE*2];
 	  int i = 0;
-	  e = internal_decode(off, str, len, dect, insns, MAX_INSTRUCTIONS, &icnt);
+	  e = distorm_decode(off, str, len, dect, insns, MAX_INSTRUCTIONS, &icnt);
 
 	  if((e == DECRES_MEMORYERR) && (icnt == 0))
 		break;
 
 	  for(i = 0; i < icnt; i++) { 
-		if(insns[i].mnemonic.pos > 0) { 
-		  memcpy(text, insns[i].mnemonic.p, insns[i].mnemonic.pos + 1);
-		  if(insns[i].operands.pos > 0) 
-			text[insns[i].mnemonic.pos] = SP_CHR;
-		  memcpy(&text[insns[i].mnemonic.pos+1], insns[i].operands.p, insns[i].operands.pos + 1);
-		  text[insns[i].mnemonic.pos+1+insns[i].operands.pos+1] = 0;
+		if(insns[i].mnemonic.length > 0) { 
+		  memcpy(text, insns[i].mnemonic.p, insns[i].mnemonic.length + 1);
+		  if(insns[i].operands.length > 0) 
+			text[insns[i].mnemonic.length] = SP_CHR;
+		  memcpy(&text[insns[i].mnemonic.length+1], insns[i].operands.p, insns[i].operands.length+ 1);
+		  text[insns[i].mnemonic.length+1+insns[i].operands.length+1] = 0;
 		} else
 		  text[0] = 0;
 

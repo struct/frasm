@@ -1,8 +1,23 @@
 /*
 wstring.h
 
-Copyright (C) 2003-2008 Gil Dabah, http://ragestorm.net/distorm/
-This library is licensed under the BSD license. See the file COPYING.
+diStorm3 - Powerful disassembler for X86/AMD64
+http://ragestorm.net/distorm/
+distorm at gmail dot com
+Copyright (C) 2003-2012 Gil Dabah
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>
 */
 
 
@@ -11,38 +26,22 @@ This library is licensed under the BSD license. See the file COPYING.
 
 #include "config.h"
 
-/* Make sure the buffer isn't overflowed. */
-#define MAX_TEXT_SIZE (60)
+#ifndef DISTORM_LIGHT
 
-typedef struct {
-	unsigned int pos;
-	int8_t p[MAX_TEXT_SIZE];
-} _WString;
+void strclear_WS(_WString* s);
+void chrcat_WS(_WString* s, uint8_t ch);
+void strcpylen_WS(_WString* s, const int8_t* buf, unsigned int len);
+void strcatlen_WS(_WString* s, const int8_t* buf, unsigned int len);
+void strcat_WS(_WString* s, const _WString* s2);
 
 /*
 * Warning, this macro should be used only when the compiler knows the size of string in advance!
 * This macro is used in order to spare the call to strlen when the strings are known already.
 * Note: sizeof includes NULL terminated character.
 */
-#define strcat_WSN(s, t) strcatlen_WS((s), (t), sizeof((t))-1)
-#define strcpy_WSN(s, t) strcpylen_WS((s), (t), sizeof((t))-1)
+#define strcat_WSN(s, t) strcatlen_WS((s), ((const int8_t*)t), sizeof((t))-1)
+#define strcpy_WSN(s, t) strcpylen_WS((s), ((const int8_t*)t), sizeof((t))-1)
 
-void _FASTCALL_ strcpy_WS(_WString* s, const int8_t* buf);
-void _FASTCALL_ strcpylen_WS(_WString* s, const int8_t* buf, unsigned int len);
-void _FASTCALL_ strcatlen_WS(_WString* s, const int8_t* buf, unsigned int len);
-
-_INLINE_ void strclear_WS(_WString* s)
-{
-	s->p[0] = '\0';
-	s->pos = 0;
-}
-
-_INLINE_ void chrcat_WS(_WString* s, uint8_t ch)
-{
-	s->p[s->pos] = ch;
-	s->p[s->pos + 1] = '\0';
-	s->pos += 1;
-}
-
+#endif /* DISTORM_LIGHT */
 
 #endif /* WSTRING_H */
