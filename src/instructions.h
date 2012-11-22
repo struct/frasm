@@ -1,8 +1,23 @@
 /*
 instructions.h
 
-Copyright (C) 2003-2008 Gil Dabah, http://ragestorm.net/distorm/
-This library is licensed under the BSD license. See the file COPYING.
+diStorm3 - Powerful disassembler for X86/AMD64
+http://ragestorm.net/distorm/
+distorm at gmail dot com
+Copyright (C) 2003-2012 Gil Dabah
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>
 */
 
 
@@ -10,9 +25,8 @@ This library is licensed under the BSD license. See the file COPYING.
 #define INSTRUCTIONS_H
 
 #include "config.h"
-
-#include "decoder.h"
 #include "prefix.h"
+
 
 /*
  * Operand type possibilities:
@@ -33,11 +47,20 @@ typedef enum OpType {
 	/* Read a double-word(32 bits) immediate */
 	OT_IMM32,
 
-	/* Special immediate for two instructions, AAM, AAD which will output the byte only if it's not 0xa (base 10) */
-	OT_IMM_AADM,
-
 	/* Read a signed extended byte(8 bits) immediate */
 	OT_SEIMM8,
+
+	/*
+	 * Special immediates for instructions which have more than one immediate,
+	 * which is an exception from standard instruction format.
+	 * As to version v1.0: ENTER, INSERTQ, EXTRQ are the only problematic ones.
+	 */
+	/* 16 bits immediate using the first imm-slot */
+	OT_IMM16_1,
+	/* 8 bits immediate using the first imm-slot */
+	OT_IMM8_1,
+	/* 8 bits immediate using the second imm-slot */
+	OT_IMM8_2,
 
 	/* Use a 8bit register */
 	OT_REG8,
@@ -47,15 +70,11 @@ typedef enum OpType {
 	OT_REG_FULL,
 	/* Use a 32bit register */
 	OT_REG32,
-	/* MOVSXD uses 64 bits register */
-	OT_REG64,
 	/*
 	 * If used with REX the reg operand size becomes 64 bits, otherwise 32 bits.
 	 * VMX instructions are promoted automatically without a REX prefix.
 	 */
 	OT_REG32_64,
-	/* Extract a 32bit register from the RM field, used for instructions with register operands only */
-	OT_REG32_RM,
 	/* Used only by MOV CR/DR(n). Promoted with REX onlly. */
 	OT_FREG32_64_RM,
 
@@ -65,8 +84,6 @@ typedef enum OpType {
 	OT_RM16,
 	/* Use or read a 16/32/64bit register or immediate word/dword/qword */
 	OT_RM_FULL,
-	/* Use or read a 32bit register or immediate dword */
-	OT_RM32,
 	/*
 	 * 32 or 64 bits (with REX) operand size indirection memory operand.
 	 * Some instructions are promoted automatically without a REX prefix.
@@ -149,6 +166,8 @@ typedef enum OpType {
 
 	/* Use general memory indirection, with varying sizes: */
 	OT_MEM,
+	/* Used when a memory indirection is required, but if the mod field is 11, this operand will be ignored. */
+	OT_MEM_OPT,
 	OT_MEM32,
 	/* Memory dereference for MOVNTI, either 32 or 64 bits (with REX). */
 	OT_MEM32_64,
@@ -157,8 +176,9 @@ typedef enum OpType {
 	/* Used for cmpxchg8b/16b. */
 	OT_MEM64_128,
 
-	/* Read an immediate as an absolute address, size is known by instruction, used by MOV (offset) only */
-	OT_MOFFS,
+	/* Read an immediate as an absolute address, size is known by instruction, used by MOV (memory offset) only */
+	OT_MOFFS8,
+	OT_MOFFS_FULL,
 	/* Use an immediate of 1, as for SHR R/M, 1 */
 	OT_CONST1,
 	/* Use CL, as for SHR R/M, CL */
@@ -170,8 +190,6 @@ typedef enum OpType {
 	 * Use a 8bit register
 	 */
 	OT_IB_RB,
-	/* Use a 32 or 64bit (with REX) register, used by BSWAP */
-	OT_IB_R_DW_QW,
 	/* Use a 16/32/64bit register */
 	OT_IB_R_FULL,
 
@@ -217,25 +235,52 @@ typedef enum OpType {
 	/* Implied XMM0 register as operand, used in SSE4. */
 	OT_REGXMM0,
 
-	/*
-	 * DUMMY for cases like CALL WORD [BX+DI], we would like to omit this "WORD". It's useless,
-	 * because the DWORD/WORD/BYTE mechanism is being done automatically, we need some way to disable it in such cases...
-	 */
-	OT_DUMMY
+	/* AVX operands: */
+
+	/* ModR/M for 32 bits. */
+	OT_RM32,
+	/* Reg32/Reg64 (prefix width) or Mem8. */
+	OT_REG32_64_M8,
+	/* Reg32/Reg64 (prefix width) or Mem16. */
+	OT_REG32_64_M16,
+	/* Reg32/Reg 64 depends on prefix width only. */
+	OT_WREG32_64,
+	/* RM32/RM64 depends on prefix width only. */
+	OT_WRM32_64,
+	/* XMM or Mem32/Mem64 depends on perfix width only. */
+	OT_WXMM32_64,
+	/* XMM is encoded in VEX.VVVV. */
+	OT_VXMM,
+	/* XMM is encoded in the high nibble of an immediate byte. */
+	OT_XMM_IMM,
+	/* YMM/XMM is dependent on VEX.L. */
+	OT_YXMM,
+	/* YMM/XMM (depends on prefix length) is encoded in the high nibble of an immediate byte. */
+	OT_YXMM_IMM,
+	/* YMM is encoded in reg. */
+	OT_YMM,
+	/* YMM or Mem256. */
+	OT_YMM256,
+	/* YMM is encoded in VEX.VVVV. */
+	OT_VYMM,
+	/* YMM/XMM is dependent on VEX.L, and encoded in VEX.VVVV. */
+	OT_VYXMM,
+	/* YMM/XMM or Mem64/Mem256 is dependent on VEX.L. */
+	OT_YXMM64_256,
+	/* YMM/XMM or Mem128/Mem256 is dependent on VEX.L. */
+	OT_YXMM128_256,
+	/* XMM or Mem64/Mem256 is dependent on VEX.L. */
+	OT_LXMM64_128,
+	/* Mem128/Mem256 is dependent on VEX.L. */
+	OT_LMEM128_256
 } _OpType;
 
 /* Flags for instruction: */
 
 /* Empty flags indicator: */
-#define INST_FLAGS_NONE ((_iflags)-1)
-
-/*
- * Explicitly define that the instruction doesn't require a ModRM byte.
- * NOTE its value is 0! you can't do much with it, it is used for instructions that for sure don't use the ModR/M byte.
- */
-#define INST_EXCLUDE_MODRM (0)
-/* The instruction we are going to decode has a ModR/M byte. */
-#define INST_INCLUDE_MODRM (1)
+#define INST_FLAGS_NONE (0)
+/* The instruction we are going to decode requires ModR/M encoding. */
+#define INST_MODRM_REQUIRED (1)
 /* Special treatment for instructions which are in the divided-category but still needs the whole byte for ModR/M... */
 #define INST_NOT_DIVIDED (1 << 1)
 /*
@@ -246,7 +291,7 @@ typedef enum OpType {
 /* If the opcode is supported by 80286 and upper models (16/32 bits). */
 #define INST_32BITS (1 << 3)
 /*
- * Prefix flags (4 types: lock/rep, seg override, addr-size, oper-size)
+ * Prefix flags (6 types: lock/rep, seg override, addr-size, oper-size, REX, VEX)
  * There are several specific instructions that can follow LOCK prefix,
  * note that they must be using a memory operand form, otherwise they generate an exception.
  */
@@ -280,16 +325,16 @@ typedef enum OpType {
 /* Use fourth operand, means it's an _InstInfoEx structure, which contains another operand for special instructions. */
 #define INST_USE_OP4 (1 << 18)
 /* The instruction's mnemonic depends on the mod value of the ModR/M byte (mod=11, mod!=11). */
-#define INST_MODRM_BASED (1 << 19)
+#define INST_MNEMONIC_MODRM_BASED (1 << 19)
 /* The instruction uses a ModR/M byte which the MOD must be 11 (for registers operands only). */
-#define INST_MODRR (1 << 20)
+#define INST_MODRR_REQUIRED (1 << 20)
 /* The way of 3DNow! instructions are built, we have to handle their locating specially. Suffix imm8 tells which instruction it is. */
 #define INST_3DNOW_FETCH (1 << 21)
 /* The instruction needs two suffixes, one for the comparison type (imm8) and the second for its operation size indication (second mnemonic). */
 #define INST_PSEUDO_OPCODE (1 << 22)
 /* Invalid instruction at 64 bits decoding mode. */
 #define INST_INVALID_64BITS (1 << 23)
-/* Specific instruction is can be promoted to 64 bits (without REX it is promoted automatically). */
+/* Specific instruction can be promoted to 64 bits (without REX, it is promoted automatically). */
 #define INST_64BITS (1 << 24)
 /* Indicates the instruction must be REX prefixed in order to use 64 bits operands. */
 #define INST_PRE_REX (1 << 25)
@@ -297,68 +342,72 @@ typedef enum OpType {
 #define INST_USE_EXMNEMONIC2 (1 << 26)
 /* Instruction is only valid in 64 bits decoding mode. */
 #define INST_64BITS_FETCH (1 << 27)
+/* Forces that the ModRM-REG/Opcode field will be 0. (For EXTRQ). */
+#define INST_FORCE_REG0 (1 << 28)
+/* Indicates that instruction is encoded with a VEX prefix. */
+#define INST_PRE_VEX (1 << 29)
+/* Indicates that the instruction is encoded with a ModRM byte (REG field specifically). */
+#define INST_MODRM_INCLUDED (1 << 30)
+/* Indicates that the first (/destination) operand of the instruction is writable. */
+#define INST_DST_WR (1 << 31)
 
 #define INST_PRE_REPS (INST_PRE_REPNZ | INST_PRE_REP)
 #define INST_PRE_LOKREP_MASK (INST_PRE_LOCK | INST_PRE_REPNZ | INST_PRE_REP)
-#define INST_PRE_SEGOVRD_MASK (INST_PRE_CS | INST_PRE_SS | INST_PRE_DS | INST_PRE_ES | INST_PRE_FS | INST_PRE_GS)
+#define INST_PRE_SEGOVRD_MASK32 (INST_PRE_CS | INST_PRE_SS | INST_PRE_DS | INST_PRE_ES)
+#define INST_PRE_SEGOVRD_MASK64 (INST_PRE_FS | INST_PRE_GS)
+#define INST_PRE_SEGOVRD_MASK (INST_PRE_SEGOVRD_MASK32 | INST_PRE_SEGOVRD_MASK64)
 
-/* Instructions Set classes: */
-/* Indicates the instruction belongs to the General Integer set. */
-#define ISCT_INTEGER 1
-/* Indicates the instruction belongs to the 387 FPU set. */
-#define ISCT_FPU 2
-/* Indicates the instruction belongs to the P6 set. */
-#define ISCT_P6 3
-/* Indicates the instruction belongs to the MMX set. */
-#define ISCT_MMX 4
-/* Indicates the instruction belongs to the SSE set. */
-#define ISCT_SSE 5
-/* Indicates the instruction belongs to the SSE2 set. */
-#define ISCT_SSE2 6
-/* Indicates the instruction belongs to the SSE3 set. */
-#define ISCT_SSE3 7
-/* Indicates the instruction belongs to the SSSE3 set. */
-#define ISCT_SSSE3 8
-/* Indicates the instruction belongs to the SSE4.1 set. */
-#define ISCT_SSE4_1 9
-/* Indicates the instruction belongs to the SSE4.2 set. */
-#define ISCT_SSE4_2 10
-/* Indicates the instruction belongs to the AMD's SSE4.A set. */
-#define ISCT_SSE4_A 11
-/* Indicates the instruction belongs to the 3DNow! set. */
-#define ISCT_3DNOW 12
-/* Indicates the instruction belongs to the 3DNow! Extensions set. */
-#define ISCT_3DNOWEXT 13
-/* Indicates the instruction belongs to the VMX (Intel) set. */
-#define ISCT_VMX 14
-/* Indicates the instruction belongs to the SVM (AMD) set. */
-#define ISCT_SVM 15
+/* Extended flags for VEX: */
+/* Indicates that the instruction might have VEX.L encoded. */
+#define INST_VEX_L (1)
+/* Indicates that the instruction might have VEX.W encoded. */
+#define INST_VEX_W (1 << 1)
+/* Indicates that the mnemonic of the instruction is based on the VEX.W bit. */
+#define INST_MNEMONIC_VEXW_BASED (1 << 2)
+/* Indicates that the mnemonic of the instruction is based on the VEX.L bit. */
+#define INST_MNEMONIC_VEXL_BASED (1 << 3)
+/* Forces the instruction to be encoded with VEX.L, otherwise it's undefined. */
+#define INST_FORCE_VEXL (1 << 4)
+/*
+ * Indicates that the instruction is based on the MOD field of the ModRM byte.
+ * (MOD==11: got the right instruction, else skip +4 in prefixed table for the correct instruction).
+ */
+#define INST_MODRR_BASED (1 << 5)
+/* Indicates that the instruction doesn't use the VVVV field of the VEX prefix, if it does then it's undecodable. */
+#define INST_VEX_V_UNUSED (1 << 6)
 
 /*
  * Indicates which operand is being decoded.
  * Destination (1st), Source (2nd), op3 (3rd), op4 (4th).
- * Its main purpose to help the decode-operands function know whether its the first operand (+ it's indirection + there's a lock prefix).
+ * Used to set the operands' fields in the _DInst structure!
  */
-typedef enum {ONT_NONE = -1, ONT_1, ONT_2, ONT_3, ONT_4} _OperandNumberType;
-
-#define MAX_MNEMONIC_LENGTH (32)
-
-#ifdef _MSC_VER
- #pragma pack(push, 1)
-#endif
+typedef enum {ONT_NONE = -1, ONT_1 = 0, ONT_2 = 1, ONT_3 = 2, ONT_4 = 3} _OperandNumberType;
 
 /*
- * Info about the instruction, source/dest types, its name in text and flags.
+ * In order to save more space for storing the DB statically,
+ * I came up with another level of shared info.
+ * Because I saw that most of the information that instructions use repeats itself.
+ *
+ * Info about the instruction, source/dest types, meta and flags.
+ * _InstInfo points to a table of _InstSharedInfo.
+ */
+typedef struct {
+	uint8_t flagsIndex; /* An index into FlagsTables */
+	uint8_t s, d; /* OpType. */
+	uint8_t meta; /* Hi 5 bits = Instruction set class | Lo 3 bits = flow control flags. */
+	/* The following are CPU flag masks that the instruction changes. */
+	uint8_t modifiedFlags;
+	uint8_t testedFlags;
+	uint8_t undefinedFlags;
+} _InstSharedInfo;
+
+/*
  * This structure is used for the instructions DB and NOT for the disassembled result code!
  * This is the BASE structure, there are extentions to this structure below.
  */
-
-typedef struct _PACKED_ {
-	uint8_t type;
-	uint8_t isc;
-	uint8_t s, d; /* OpType */
-	int8_t* mnemonic;
-	_iflags flags;
+typedef struct {
+	uint16_t sharedIndex; /* An index into the SharedInfoTable. */
+	uint16_t opcodeId; /* The opcodeId is really a byte-offset into the mnemonics table. */
 } _InstInfo;
 
 /*
@@ -371,55 +420,35 @@ typedef struct _PACKED_ {
  * therefore, I decided to make the extended structure contain all extra info in the same structure.
  * There are a few instructions (SHLD/SHRD/IMUL and SSE too) which use third operand (or a fourth).
  * A flag will indicate it uses a third/fourth operand.
- *
  */
-typedef struct _PACKED_ {
-	uint8_t type;
-	uint8_t isc;
-	uint8_t s, d; /* OpType */
-	int8_t* mnemonic;
-	_iflags flags;
-	uint8_t op3, op4; /* OpType */
-	int8_t* mnemonic2;
-	int8_t* mnemonic3;
+typedef struct {
+	/* Base structure (doesn't get accessed directly from code). */
+	_InstInfo BASE;
+
+	/* Extended starts here. */
+	uint8_t flagsEx; /* 8 bits are enough, in the future we might make it a bigger integer. */
+	uint8_t op3, op4; /* OpType. */
+	uint16_t opcodeId2, opcodeId3;
 } _InstInfoEx;
 
 /* Trie data structure node type: */
 typedef enum {
-	INT_NOTEXISTS = -1, /* Not exists (this is used for a return code only). */
-	INT_NONE, /* No instruction info or list set. */
-	INT_INFO, /* It's an instruction info. */
+	INT_NOTEXISTS = 0, /* Not exists. */
+	INT_INFO = 1, /* It's an instruction info. */
+	INT_INFOEX,
 	INT_LIST_GROUP,
 	INT_LIST_FULL,
-	INT_LIST_DIVIDED
+	INT_LIST_DIVIDED,
+	INT_LIST_PREFIXED
 } _InstNodeType;
 
-/*
- * A node in the instructions DB;
- * Can be both a node or an info, depends on type.
- */
-typedef struct _PACKED_ InstNode{
-	uint8_t type;
-	uint8_t* ids;
-	_InstInfo** list; /* The second level might point to _InstNode, this is determined by type in runtime. */
-} _InstNode;
+/* Used to check instType < INT_INFOS, means we got an inst-info. Cause it has to be only one of them. */
+#define INT_INFOS (INT_LIST_GROUP)
 
-#ifdef _MSC_VER
- #pragma pack(pop)
-#endif
+/* Instruction node is treated as { int index:13;  int type:3; } */
+typedef uint16_t _InstNode;
 
-typedef enum {OPERAND_SIZE_NONE = 0, OPERAND_SIZE8, OPERAND_SIZE16, OPERAND_SIZE32, OPERAND_SIZE64, OPERAND_SIZE80, OPERAND_SIZE128} _OperandSizeType;
-
-/*
- * Used for letting the extract operand know the type of operands without knowing the
- * instruction itself yet, because of the way those instructions work.
- */
-extern _InstInfo II_3dnow;
-
-_InstInfo* locate_inst(const uint8_t** code, int* codeLen, _OffsetType* codeOffset, _WString* instructionHex, _PrefixState* ps, _DecodeType dt);
-_InstInfo* locate_3dnow_inst(_CodeInfo* ci, _WString* instructionHex);
-
-/* Concatenates a text describing the size used for indirections form. (MOV *WORD* [BX], 0x12) when it's not cleared from operands. */
-void str_indirection_text(_WString* s, _OperandSizeType opSize);
+_InstInfo* inst_lookup(_CodeInfo* ci, _PrefixState* ps);
+_InstInfo* inst_lookup_3dnow(_CodeInfo* ci);
 
 #endif /* INSTRUCTIONS_H */
