@@ -1,5 +1,5 @@
 CC=gcc
-LDFLAGS=-bundle -undefined suppress -flat_namespace -lruby /usr/local/lib/libdistorm64.dylib
+LDFLAGS=-bundle -undefined suppress -flat_namespace -lruby /usr/local/lib/libdistorm3.dylib
 CFLAGS=-ggdb -Wall -DSUPPORT_64BIT_OFFSET -I/opt/local/lib/ruby/1.8/i686-darwin9/
 OBJECTS=../src/frasm.o
 

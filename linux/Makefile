@@ -1,5 +1,5 @@
 CC=gcc
-LDFLAGS=-shared -lruby1.8 /usr/local/lib/libdistorm64.so
+LDFLAGS=-shared -lruby1.8 /usr/local/lib/libdistorm3.so
 CFLAGS=-ggdb -Wall -DSUPPORT_64BIT_OFFSET -I/usr/lib/ruby/1.8/i486-linux/
 OBJECTS=../src/frasm.o
 
